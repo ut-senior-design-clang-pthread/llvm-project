@@ -7,17 +7,19 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 
-#include <clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h>
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h"
 
 using namespace clang;
 using namespace ento;
+
+#pragma clang optimize off
 
 namespace {
 
 // Since we are looking to extract the arguments, go with pre call for now
 class ThreadModeling : public Checker<check::PreCall> {
 
-  constexpr static CallDescriptionSet ThreadCreateCalls {
+  const CallDescriptionSet ThreadCreateCalls {
     { CDM::CLibrary, {"pthread_create"}, 4},
   };
 
@@ -45,13 +47,22 @@ void ThreadModeling::checkPreCall(const CallEvent &Call, CheckerContext &C) cons
                           void *restrict arg);
    */
   assert(Call.getNumArgs() == 4 && "pthread_create(3) should have 4 arguments");
-  const Expr *StartRoutineExpr = Call.getArgExpr(2);
+  Expr const *StartRoutineExpr = Call.getArgExpr(2);
   assert(StartRoutineExpr && "start_routine should exist"); // XXX: might fail if in diff TU?
 
   // 3. Get the function pointer for `start_routine`
-  const SVal SRV = C.getSVal(StartRoutineExpr);
+  SVal const SRV = C.getSVal(StartRoutineExpr);
+  MemRegion const *SRR = SRV.getAsRegion();
+  assert(SRR && "start_routine should be a pointer");
 
-  // 4. Resolve FunctionDecl
+  // 4. Resolve FunctionDecl from pointer
+  FunctionDecl const *StartRoutine = nullptr;
+
+  if (auto const *FR = dyn_cast<FunctionCodeRegion>(SRR)) {
+    StartRoutine = dyn_cast<FunctionDecl>(FR->getDecl());
+  } // XXX: Can the function pointer be a different region type? (e.g. SymbolicRegion)
+  assert(StartRoutine && "start_routine be a valid function pointer");
+
   // 5. Get AST (single TU for now)
   // 6. Resolve AST to Call
   // 7. Inline Call
