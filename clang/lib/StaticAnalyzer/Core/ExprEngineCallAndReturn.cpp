@@ -533,6 +533,12 @@ void ExprEngine::ctuBifurcate(const CallEvent &Call, const Decl *D,
   inlineCall(Engine.getWorkList(), Call, D, Bldr, Pred, State);
 }
 
+void ExprEngine::threadBifurcate(CallEvent const &Call, Decl const *D,
+                                 NodeBuilder &Bldr, ExplodedNode *Pred,
+                                 ProgramStateRef State) {
+
+}
+
 void ExprEngine::inlineCall(WorkList *WList, const CallEvent &Call,
                             const Decl *D, NodeBuilder &Bldr,
                             ExplodedNode *Pred, ProgramStateRef State) {
@@ -1251,6 +1257,12 @@ void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
     Call->setForeign(RD.isForeign());
     const Decl *D = RD.getDecl();
 
+    // TODO: make this a proper mode
+    // Special case thread creation
+    if (isThread(*Call)) {
+      threadBifurcate(*Call, D, Bldr, Pred, State);
+      return;
+    }
 
     if (shouldInlineCall(*Call, D, Pred, CallOpts)) {
       if (RD.mayHaveOtherDefinitions()) {

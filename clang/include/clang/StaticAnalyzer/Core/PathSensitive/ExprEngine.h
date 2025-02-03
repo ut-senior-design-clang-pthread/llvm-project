@@ -849,6 +849,9 @@ private:
   void ctuBifurcate(const CallEvent &Call, const Decl *D, NodeBuilder &Bldr,
                     ExplodedNode *Pred, ProgramStateRef State);
 
+  void threadBifurcate(CallEvent const &Call, Decl const *D, NodeBuilder &Bldr,
+                      ExplodedNode *Pred, ProgramStateRef State);
+
   /// Returns true if the CTU analysis is running its second phase.
   bool isSecondPhaseCTU() { return IsCTUEnabled && !Engine.getCTUWorkList(); }
 
