@@ -25,6 +25,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include <clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h>
 #include <optional>
 
 using namespace clang;
@@ -1144,6 +1145,14 @@ bool ExprEngine::shouldInlineCall(const CallEvent &Call, const Decl *D,
   return true;
 }
 
+static const CallDescriptionSet ThreadCreateCalls {
+    { CDM::CLibrary, {"pthread_create"}, 4},
+};
+
+bool ExprEngine::isThread(CallEvent const &Call) const {
+  return ThreadCreateCalls.contains(Call);
+}
+
 bool ExprEngine::shouldInlineArrayConstruction(const ProgramStateRef State,
                                                const CXXConstructExpr *CE,
                                                const LocationContext *LCtx) {
@@ -1241,6 +1250,8 @@ void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
     RuntimeDefinition RD = Call->getRuntimeDefinition();
     Call->setForeign(RD.isForeign());
     const Decl *D = RD.getDecl();
+
+
     if (shouldInlineCall(*Call, D, Pred, CallOpts)) {
       if (RD.mayHaveOtherDefinitions()) {
         AnalyzerOptions &Options = getAnalysisManager().options;

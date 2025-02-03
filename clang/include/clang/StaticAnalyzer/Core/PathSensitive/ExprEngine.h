@@ -137,6 +137,7 @@ public:
 private:
   cross_tu::CrossTranslationUnitContext &CTU;
   bool IsCTUEnabled;
+  bool IsThreadEnabled;
 
   AnalysisManager &AMgr;
 
@@ -806,6 +807,9 @@ private:
   bool shouldInlineCall(const CallEvent &Call, const Decl *D,
                         const ExplodedNode *Pred,
                         const EvalCallOptions &CallOpts = {});
+
+  /// Check if this is a call to create a thread
+  bool isThread(CallEvent const &Call) const;
 
   /// Checks whether our policies allow us to inline a non-POD type array
   /// construction.
