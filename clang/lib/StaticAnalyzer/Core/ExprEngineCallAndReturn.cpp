@@ -25,6 +25,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include <clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h>
 #include <optional>
 
 using namespace clang;
@@ -531,6 +532,71 @@ void ExprEngine::ctuBifurcate(const CallEvent &Call, const Decl *D,
   }
   inlineCall(Engine.getWorkList(), Call, D, Bldr, Pred, State);
 }
+
+// XXX: We only handle pthreads currently
+#pragma clang optimize off
+void ExprEngine::threadBifurcate(CallEvent const &Call, Decl const *D,
+                                 NodeBuilder &Bldr, ExplodedNode *Pred,
+                                 ProgramStateRef State) {
+  // The declaration for pthread_create(3):
+  /* int pthread_create(pthread_t *thread,
+                          const pthread_attr_t *attr,
+                          void *(*start_routine)(void *),
+                          void *arg);
+   */
+  assert(Call.getNumArgs() == 4 && "pthread_create(3) should have 4 args");
+
+  // 1. Extract the expr for the thread's start routine
+  auto const *SRExpr = Call.getArgExpr(2);
+  assert(SRExpr && "start_routine should exist");
+  auto const *SRInit = Call.getArgExpr(3);
+  assert(SRInit && "start_routine should have an init param");
+
+  // 2. Convert the expr into a function pointer
+  auto const SRV = Pred->getSVal(SRExpr);
+  auto const *SRR = SRV.getAsRegion();
+  assert(SRR && "start_routine should be a pointer");
+
+  FunctionDecl const *StartRoutine = nullptr;
+  if (auto const *FR = dyn_cast<FunctionCodeRegion>(SRR))
+    StartRoutine = dyn_cast<FunctionDecl>(FR->getDecl());
+
+  assert(StartRoutine && "start_routine should be a valid function pointer");
+  assert(StartRoutine->hasBody() && "start_routine must be well defined");
+
+  // 3. Create a CallEvent for calling the function pointer
+
+  auto *SRCtx = AMgr.getAnalysisDeclContext(StartRoutine);
+
+  auto &CEMgr = State->getStateManager().getCallEventManager();
+  auto const *LC = Pred->getLocationContext();
+
+  // We need to construct a fake CallExpr for the worker thread, since it doesn't exist
+
+  auto *srexpr = DeclRefExpr::Create(
+    SRR->getContext(),
+    NestedNameSpecifierLoc(),
+    SourceLocation(),
+    const_cast<FunctionDecl*>(StartRoutine),
+    false,
+    SourceLocation(),
+    StartRoutine->getType(),
+    VK_LValue);
+
+  CallExpr *srcall = CallExpr::Create(
+    SRR->getContext(),
+    srexpr,
+    {const_cast<Expr*>(SRInit)},
+    StartRoutine->getType(),
+    VK_LValue,
+SourceLocation(),
+FPOptionsOverride());
+
+  auto call = CEMgr.getSimpleCall(srcall, State, LC, getCFGElementRef());
+
+  inlineCall(Engine.getWorkList(), *call, StartRoutine, Bldr, Pred, State);
+}
+#pragma clang optimize on
 
 void ExprEngine::inlineCall(WorkList *WList, const CallEvent &Call,
                             const Decl *D, NodeBuilder &Bldr,
@@ -1144,6 +1210,14 @@ bool ExprEngine::shouldInlineCall(const CallEvent &Call, const Decl *D,
   return true;
 }
 
+static const CallDescriptionSet ThreadCreateCalls {
+    { CDM::CLibrary, {"pthread_create"}, 4},
+};
+
+bool ExprEngine::isThread(CallEvent const &Call) const {
+  return ThreadCreateCalls.contains(Call);
+}
+
 bool ExprEngine::shouldInlineArrayConstruction(const ProgramStateRef State,
                                                const CXXConstructExpr *CE,
                                                const LocationContext *LCtx) {
@@ -1241,6 +1315,14 @@ void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
     RuntimeDefinition RD = Call->getRuntimeDefinition();
     Call->setForeign(RD.isForeign());
     const Decl *D = RD.getDecl();
+
+    // TODO: make this a proper mode
+    // Special case thread creation
+    if (isThread(*Call)) {
+      threadBifurcate(*Call, D, Bldr, Pred, State);
+      return;
+    }
+
     if (shouldInlineCall(*Call, D, Pred, CallOpts)) {
       if (RD.mayHaveOtherDefinitions()) {
         AnalyzerOptions &Options = getAnalysisManager().options;

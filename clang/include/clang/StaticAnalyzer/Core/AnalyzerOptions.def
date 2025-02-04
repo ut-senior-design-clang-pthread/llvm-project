@@ -385,6 +385,10 @@ ANALYZER_OPTION(
     "flex\" won't be analyzed.",
     true)
 
+ANALYZER_OPTION(bool, ThreadAware, "thread-aware",
+    "If enabled, enable thread API modeling to perform cross-thread analysis",
+    true)
+
 //===----------------------------------------------------------------------===//
 // Unsigned analyzer options.
 //===----------------------------------------------------------------------===//

@@ -137,6 +137,7 @@ public:
 private:
   cross_tu::CrossTranslationUnitContext &CTU;
   bool IsCTUEnabled;
+  bool IsThreadEnabled;
 
   AnalysisManager &AMgr;
 
@@ -807,6 +808,9 @@ private:
                         const ExplodedNode *Pred,
                         const EvalCallOptions &CallOpts = {});
 
+  /// Check if this is a call to create a thread
+  bool isThread(CallEvent const &Call) const;
+
   /// Checks whether our policies allow us to inline a non-POD type array
   /// construction.
   bool shouldInlineArrayConstruction(const ProgramStateRef State,
@@ -844,6 +848,9 @@ private:
 
   void ctuBifurcate(const CallEvent &Call, const Decl *D, NodeBuilder &Bldr,
                     ExplodedNode *Pred, ProgramStateRef State);
+
+  void threadBifurcate(CallEvent const &Call, Decl const *D, NodeBuilder &Bldr,
+                      ExplodedNode *Pred, ProgramStateRef State);
 
   /// Returns true if the CTU analysis is running its second phase.
   bool isSecondPhaseCTU() { return IsCTUEnabled && !Engine.getCTUWorkList(); }
