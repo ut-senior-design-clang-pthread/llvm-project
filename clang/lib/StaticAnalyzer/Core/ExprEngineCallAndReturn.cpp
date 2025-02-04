@@ -1319,6 +1319,7 @@ void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
     // TODO: make this a proper mode
     // Special case thread creation
     if (isThread(*Call)) {
+      llvm::errs() << "Hijacking pthread_create(3)\n";
       threadBifurcate(*Call, D, Bldr, Pred, State);
       return;
     }
