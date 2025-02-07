@@ -583,18 +583,22 @@ void ExprEngine::threadBifurcate(CallEvent const &Call, Decl const *D,
     StartRoutine->getType(),
     VK_LValue);
 
+  auto *null_expr = new (SRR->getContext()) CXXNullPtrLiteralExpr(QualType(), SourceLocation());
+
   CallExpr *srcall = CallExpr::Create(
     SRR->getContext(),
     srexpr,
-    {const_cast<Expr*>(SRInit)},
+    {const_cast<Expr*>(SRInit)  /*null_expr*/},
     StartRoutine->getType(),
     VK_LValue,
 SourceLocation(),
 FPOptionsOverride());
 
+  // TODO: bind the arguments?
   auto call = CEMgr.getSimpleCall(srcall, State, LC, getCFGElementRef());
 
   inlineCall(Engine.getWorkList(), *call, StartRoutine, Bldr, Pred, State);
+  conservativeEvalCall(*call, Bldr, Pred, State);
 }
 #pragma clang optimize on
 
