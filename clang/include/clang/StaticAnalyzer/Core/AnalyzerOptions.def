@@ -127,6 +127,11 @@ ANALYZER_OPTION(bool, MayInlineCXXStandardLibrary, "c++-stdlib-inlining",
                 "considered for inlining.",
                 true)
 
+ANALYZER_OPTION(bool, ModelPthreads, "model-pthreads",
+                "Model Pthreads if enabled - default is disabled ",
+                false
+                )
+
 ANALYZER_OPTION(bool, MayInlineCXXAllocator, "c++-allocator-inlining",
                 "Whether or not allocator and deallocator calls may be "
                 "considered for inlining.",

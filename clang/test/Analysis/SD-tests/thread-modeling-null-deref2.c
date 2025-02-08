@@ -1,6 +1,6 @@
 // RUN: %clang_analyze_cc1 -Wno-strict-prototypes -Wno-error=implicit-int -verify  %s \
 // RUN:   -analyzer-checker=core \
-// RUN:   -analyzer-checker=debug.ExprInspection
+// RUN:   -analyzer-checker=debug.ExprInspection -analyzer-config model-pthreads=true
 
 #define NULL ((void*) 0)
 enum bool {

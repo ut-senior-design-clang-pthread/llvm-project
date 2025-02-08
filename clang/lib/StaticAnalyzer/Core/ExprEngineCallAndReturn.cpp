@@ -1296,6 +1296,7 @@ static bool isTrivialObjectAssignment(const CallEvent &Call) {
 void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
                                  const CallEvent &CallTemplate,
                                  const EvalCallOptions &CallOpts) {
+  AnalyzerOptions &Opts = AMgr.getAnalyzerOptions();
   // Make sure we have the most recent state attached to the call.
   ProgramStateRef State = Pred->getState();
   CallEventRef<> Call = CallTemplate.cloneWithState(State);
@@ -1322,7 +1323,7 @@ void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
 
     // TODO: make this a proper mode
     // Special case thread creation
-    if (isThread(*Call)) {
+    if (isThread(*Call) && Opts.ModelPthreads) {
       llvm::errs() << "Hijacking pthread_create(3)\n";
       threadBifurcate(*Call, D, Bldr, Pred, State);
       return;

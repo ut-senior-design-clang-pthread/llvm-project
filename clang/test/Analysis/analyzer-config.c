@@ -99,6 +99,7 @@
 // CHECK-NEXT: min-cfg-size-treat-functions-as-large = 14
 // CHECK-NEXT: mode = deep
 // CHECK-NEXT: model-path = ""
+// CHECK-NEXT: model-pthreads = false
 // CHECK-NEXT: notes-as-events = false
 // CHECK-NEXT: nullability:NoDiagnoseCallsToSystemHeaders = false
 // CHECK-NEXT: objc-inlining = true
@@ -126,6 +127,7 @@
 // CHECK-NEXT: suppress-c++-stdlib = true
 // CHECK-NEXT: suppress-inlined-defensive-checks = true
 // CHECK-NEXT: suppress-null-return-paths = true
+// CHECK-NEXT: thread-aware = true
 // CHECK-NEXT: track-conditions = true
 // CHECK-NEXT: track-conditions-debug = false
 // CHECK-NEXT: unix.DynamicMemoryModeling:AddNoOwnershipChangeNotes = true
