@@ -15,6 +15,7 @@
 // CHECK:      OVERVIEW: Clang Static Analyzer Enabled Checkers List
 // CHECK-EMPTY:
 // CHECK-NEXT: apiModeling.Errno
+// CHECK-NEXT: apiModeling.Thread
 // CHECK-NEXT: apiModeling.TrustNonnull
 // CHECK-NEXT: apiModeling.TrustReturnsNonnull
 // CHECK-NEXT: apiModeling.llvm.CastValue
