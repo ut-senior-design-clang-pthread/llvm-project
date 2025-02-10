@@ -32,6 +32,8 @@ public:
 
 
 void ThreadModeling::checkPreCall(const CallEvent &Call, CheckerContext &C) const {
+  return;
+#if 0
   if (!ThreadCreateCalls.contains(Call)) {
     return;
   }
@@ -67,7 +69,7 @@ void ThreadModeling::checkPreCall(const CallEvent &Call, CheckerContext &C) cons
   // 6. Resolve AST to Call
   // 7. Inline Call
 
-
+#endif
 }
 
 const FunctionDecl *ThreadModeling::GetFunctionDecl(SVal V, CheckerContext &C) const {
