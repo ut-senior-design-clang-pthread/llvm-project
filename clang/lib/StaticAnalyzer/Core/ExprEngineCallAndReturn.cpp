@@ -561,6 +561,12 @@ void ExprEngine::threadBifurcate(CallEvent const &Call, Decl const *D,
   if (auto const *FR = dyn_cast<FunctionCodeRegion>(SRR))
     StartRoutine = dyn_cast<FunctionDecl>(FR->getDecl());
 
+  // There may not be an actual function bound to the 3rd
+  // argument of pthread_create because of analyzer limitations,
+  // so detect that case and return at this point since it cannot be modeled
+  if (!StartRoutine)
+    return;
+
   assert(StartRoutine && "start_routine should be a valid function pointer");
   assert(StartRoutine->hasBody() && "start_routine must be well defined");
 
