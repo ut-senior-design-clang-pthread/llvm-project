@@ -383,10 +383,6 @@ def TrustReturnsNonnullChecker : Checker<"TrustReturnsNonnull">,
            "are not null">,
   Documentation<NotDocumented>;
 
-def ThreadModeling : Checker<"Thread">,
-  HelpText<"Make threaded code available to other checkers.">,
-  Documentation<NotDocumented>;
-
 } // end "apiModeling"
 
 //===----------------------------------------------------------------------===//

@@ -112,7 +112,6 @@ add_clang_library(clangStaticAnalyzerCheckers
   Taint.cpp
   TaintTesterChecker.cpp
   TestAfterDivZeroChecker.cpp
-  ThreadModeling.cpp
   TraversalChecker.cpp
   TrustNonnullChecker.cpp
   TrustReturnsNonnullChecker.cpp
