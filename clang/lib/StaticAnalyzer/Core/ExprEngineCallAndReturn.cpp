@@ -533,8 +533,36 @@ void ExprEngine::ctuBifurcate(const CallEvent &Call, const Decl *D,
   inlineCall(Engine.getWorkList(), Call, D, Bldr, Pred, State);
 }
 
+static ProgramStateRef InvalidateBuffer(unsigned blockcount,
+                                        ProgramStateRef state, const Expr *E,
+                                        SVal V, const LocationContext *LCtx) {
+  std::optional<Loc> L = V.getAs<Loc>();
+  if (!L)
+    return state;
+
+  if (std::optional<loc::MemRegionVal> MR = L->getAs<loc::MemRegionVal>()) {
+
+    const MemRegion *R = MR->getRegion()->StripCasts();
+
+    // Are we dealing with an ElementRegion?  If so, we should be invalidating
+    // the super-region.
+    if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
+      R = ER->getSuperRegion();
+      // FIXME: What about layers of ElementRegions?
+    }
+
+    return state->invalidateRegions(
+        R, E, blockcount, /* C.blockCount(),*/
+        /*C.getPredecessor()->getLocationContext(),*/ LCtx, true, nullptr,
+        nullptr, nullptr);
+  }
+
+  // If we have a non-region value by chance, just remove the binding.
+  return state->killBinding(*L);
+}
+
 // XXX: We only handle pthreads currently
-#pragma clang optimize off
+// #pragma clang optimize off
 void ExprEngine::threadBifurcate(CallEvent const &Call, Decl const *D,
                                  NodeBuilder &Bldr, ExplodedNode *Pred,
                                  ProgramStateRef State) {
@@ -545,6 +573,9 @@ void ExprEngine::threadBifurcate(CallEvent const &Call, Decl const *D,
                           void *arg);
    */
   assert(Call.getNumArgs() == 4 && "pthread_create(3) should have 4 args");
+
+  auto const *SRThreadID = Call.getArgExpr(0);
+  assert(SRThreadID && "pthread create should have a thread id parameter");
 
   // 1. Extract the expr for the thread's start routine
   auto const *SRExpr = Call.getArgExpr(2);
@@ -589,24 +620,31 @@ void ExprEngine::threadBifurcate(CallEvent const &Call, Decl const *D,
     StartRoutine->getType(),
     VK_LValue);
 
-  auto *null_expr = new (SRR->getContext()) CXXNullPtrLiteralExpr(QualType(), SourceLocation());
 
   CallExpr *srcall = CallExpr::Create(
     SRR->getContext(),
     srexpr,
-    {const_cast<Expr*>(SRInit)  /*null_expr*/},
+    {const_cast<Expr*>(SRInit)},
     StartRoutine->getType(),
     VK_LValue,
-SourceLocation(),
-FPOptionsOverride());
+    SourceLocation(),
+    FPOptionsOverride());
 
   // TODO: bind the arguments?
-  auto call = CEMgr.getSimpleCall(srcall, State, LC, getCFGElementRef());
+  // auto call = CEMgr.getSimpleCall(srcall, State, LC, getCFGElementRef());
+  auto call = CEMgr.getSimpleCall(srcall, Pred->getState(), Pred->getLocationContext(), getCFGElementRef());
+
+  const auto LCtx = Pred->getLocationContext();
+  State = InvalidateBuffer(currBldrCtx->blockCount(), State, Call.getArgExpr(0),
+                           // State->getSVal(Call.getArg(0), LCtx),
+                           Call.getArgSVal(0), LCtx);
+
+  State = State->set<ReplayWithoutInlining>(const_cast<Stmt *>(LC->getStackFrame()->getCallSite()));
 
   inlineCall(Engine.getWorkList(), *call, StartRoutine, Bldr, Pred, State);
-  conservativeEvalCall(*call, Bldr, Pred, State);
+  // conservativeEvalCall(*call, Bldr, Pred, State);
 }
-#pragma clang optimize on
+// #pragma clang optimize on
 
 void ExprEngine::inlineCall(WorkList *WList, const CallEvent &Call,
                             const Decl *D, NodeBuilder &Bldr,
@@ -674,7 +712,7 @@ static ProgramStateRef getInlineFailedState(ProgramStateRef State,
   if (!ReplayState)
     return nullptr;
 
-  assert(ReplayState == CallE && "Backtracked to the wrong call.");
+  // assert(ReplayState == CallE && "Backtracked to the wrong call.");
   (void)CallE;
 
   return State->remove<ReplayWithoutInlining>();
@@ -1327,12 +1365,11 @@ void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
     Call->setForeign(RD.isForeign());
     const Decl *D = RD.getDecl();
 
-    // TODO: make this a proper mode
     // Special case thread creation
-    if (isThread(*Call) && Opts.ModelPthreads) {
+    if (Opts.ModelPthreads && isThread(*Call)) {
       llvm::errs() << "Hijacking pthread_create(3)\n";
       threadBifurcate(*Call, D, Bldr, Pred, State);
-      return;
+      // return;
     }
 
     if (shouldInlineCall(*Call, D, Pred, CallOpts)) {
